@@ -1,0 +1,11 @@
+description "flask-app"
+
+start on (filesystem)
+stop on runlevel [016]
+
+respawn
+setuid appuser
+setgid appuser
+chdir {{ app_home }}
+
+exec gunicorn app:app --bind unix:/tmp/flask-app.sock --workers 5

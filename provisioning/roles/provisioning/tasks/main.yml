@@ -1,0 +1,55 @@
+---
+
+# Deploy and Configure Flask Applicaiton
+
+# Add appuser
+  - name: add appuser group
+    group: name=appuser state=present
+
+  - name: add appuser
+    user: name=appuser group=appuser
+
+# Install required packages
+  - name: install packages
+    apt: update_cache=yes name={{ item }} state=present
+    with_items:
+      - git
+      - python-pip
+      - nginx
+
+# Clone Code Repository
+  - name: ensure app_home directory exists
+    file: path=/webapps/devops state=directory owner=appuser group=appuser mode=0755
+
+  - name: clone repository
+    git: repo='{{ app_repo }}' dest='{{ app_home }}'
+    become: yes
+    become_user: appuser
+
+# Install pip requirements
+  - name: install pip requirements
+    pip: requirements='{{ app_home }}/requirements.txt'
+
+# deploy and configure gunicorn
+  - name: install gunicorn
+    pip: name=gunicorn
+
+  - name: deploy gunicorn config
+    template: src=etc/init/flask-app.conf.j2 dest=/etc/init/flask-app.conf
+
+  - name: enable service
+    service: name=flask-app state=started
+
+# configure nginx
+  - name: copy flask-app site
+    template: src=etc/nginx/sites-enabled/flask-app.j2 dest=/etc/nginx/sites-enabled/flask-app
+    notify:
+      - restart nginx
+
+  - name: remove default sites
+    file: path=/etc/nginx/sites-enabled/default state=absent
+    notify:
+      - restart nginx
+
+  - name: enble nginx
+    service: name=nginx state=started
